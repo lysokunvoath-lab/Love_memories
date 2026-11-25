@@ -231,7 +231,8 @@ function App() {
     event.preventDefault();
     if (!supabase || !gallery) return;
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const date = String(form.get("date") ?? "");
     const title = String(form.get("title") ?? "").trim();
     if (!date || !title) return;
@@ -285,7 +286,7 @@ function App() {
 
       const updatedMemories = await fetchGalleryMemories(gallery.id);
       setMemories(updatedMemories);
-      event.currentTarget.reset();
+      formElement.reset();
       setUploadedFiles([]);
       closeDialog();
     } catch (saveError) {
