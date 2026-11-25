@@ -35,7 +35,7 @@ async function fetchGalleryMemories(galleryId) {
     .from("memories")
     .select("id, gallery_id, memory_date, title, location, note, media(id, storage_path, media_type, original_name, sort_order)")
     .eq("gallery_id", galleryId)
-    .order("memory_date", { ascending: false });
+    .order("memory_date", { ascending: true });
 
   if (error) throw error;
 
@@ -72,6 +72,13 @@ async function fetchGalleryMemories(galleryId) {
         };
       })
   }));
+}
+
+async function deleteStoredMedia(paths) {
+  if (paths.length === 0) return;
+
+  const { error } = await supabase.storage.from(storageBucket).remove(paths);
+  if (error) throw error;
 }
 
 function Media({ media, className = "" }) {
@@ -179,7 +186,7 @@ function App() {
     uploadedFiles.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
   }, [uploadedFiles]);
 
-  const sortedMemories = [...memories].sort((a, b) => b.date.localeCompare(a.date));
+  const sortedMemories = [...memories].sort((a, b) => a.date.localeCompare(b.date));
 
   function openDialog() {
     setFormError("");
@@ -225,6 +232,84 @@ function App() {
     setError("");
     setGallery(null);
     setMemories([]);
+  }
+
+  async function handleDeleteMemory() {
+    if (!supabase || !gallery || !selectedDay || busy) return;
+
+    const memoryToDelete = selectedDay;
+    if (!window.confirm(`Permanently delete "${memoryToDelete.title}" and all its photos and videos?`)) return;
+
+    const paths = memoryToDelete.media.map(media => media.storagePath);
+    let storageRemovalAttempted = false;
+    setBusy(true);
+    setError("");
+
+    try {
+      storageRemovalAttempted = paths.length > 0;
+      await deleteStoredMedia(paths);
+
+      const { error: deleteError } = await supabase
+        .from("memories")
+        .delete()
+        .eq("id", memoryToDelete.id)
+        .eq("gallery_id", gallery.id)
+        .select("id")
+        .single();
+
+      if (deleteError) throw deleteError;
+
+      setMemories(current => current.filter(memory => memory.id !== memoryToDelete.id));
+      setSelectedDay(null);
+    } catch (deleteError) {
+      const partialMessage = storageRemovalAttempted ? " Some media may already have been removed." : "";
+      setError(`Could not delete this memory: ${getErrorMessage(deleteError)}${partialMessage}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteAlbum() {
+    if (!supabase || !gallery || busy) return;
+
+    const galleryToDelete = gallery;
+    if (!window.confirm("Permanently delete the entire album and all its memories, photos, and videos?")) return;
+
+    let storageRemovalAttempted = false;
+    setBusy(true);
+    setError("");
+
+    try {
+      const { data: memoryRows, error: memoriesError } = await supabase
+        .from("memories")
+        .select("media(storage_path)")
+        .eq("gallery_id", galleryToDelete.id);
+
+      if (memoriesError) throw memoriesError;
+
+      const paths = (memoryRows ?? []).flatMap(memory => (memory.media ?? []).map(media => media.storage_path));
+      storageRemovalAttempted = paths.length > 0;
+      await deleteStoredMedia(paths);
+
+      const { error: deleteError } = await supabase
+        .from("galleries")
+        .delete()
+        .eq("id", galleryToDelete.id)
+        .select("id")
+        .single();
+
+      if (deleteError) throw deleteError;
+
+      setGallery(null);
+      setMemories([]);
+      setSelectedDay(null);
+      setGateState("locked");
+    } catch (deleteError) {
+      const partialMessage = storageRemovalAttempted ? " Some media may already have been removed." : "";
+      setError(`Could not delete the album: ${getErrorMessage(deleteError)}${partialMessage}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -318,6 +403,18 @@ function App() {
         {gateState === "unlocked" && (
           <div className="account-actions">
             <span className="account-email">Our private space</span>
+            {gallery && (
+              <button
+                className="danger-button delete-album-button"
+                onClick={handleDeleteAlbum}
+                disabled={busy}
+                aria-label="Delete album"
+                title="Delete album"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>
+                <span>Delete album</span>
+              </button>
+            )}
             <button className="account-button" onClick={handleLockGallery} disabled={busy}>Lock gallery</button>
           </div>
         )}
@@ -457,9 +554,14 @@ function App() {
 
             {selectedDay && (
               <section className="day-view">
-                <button className="back-button" onClick={() => setSelectedDay(null)}>
-                  <span aria-hidden="true">←</span> Back to timeline
-                </button>
+                <div className="day-toolbar">
+                  <button className="back-button" onClick={() => setSelectedDay(null)}>
+                    <span aria-hidden="true">←</span> Back to timeline
+                  </button>
+                  <button className="danger-button delete-memory-button" onClick={handleDeleteMemory} disabled={busy}>
+                    Delete memory
+                  </button>
+                </div>
                 <div className="day-header">
                   <div>
                     <p className="eyebrow">{formatDate(selectedDay.date).weekday}</p>

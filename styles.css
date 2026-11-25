@@ -292,7 +292,8 @@ main { max-width: 1280px; margin: 0 auto; }
 .timeline.list-view .memory-caption { padding: 0 22px; }
 
 .day-view { padding: 30px 42px 90px; }
-.back-button { margin-bottom: 42px; color: var(--muted); font-size: 13px; }
+.day-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 42px; }
+.back-button { color: var(--muted); font-size: 13px; }
 .back-button span { margin-right: 8px; }
 .day-header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 22px; }
 .day-header h2 { font-size: 64px; }
@@ -755,6 +756,7 @@ main {
 .add-button,
 .icon-button,
 .back-button,
+.danger-button,
 .brand,
 .save-button,
 .close-button {
@@ -850,6 +852,32 @@ main {
   font: inherit;
   font-size: 12px;
 }
+
+.danger-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid rgba(220, 66, 80, .38);
+  border-radius: 999px;
+  background: rgba(182, 45, 58, .08);
+  color: #f0a1a7;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  transition: color 220ms ease, background-color 220ms ease, border-color 220ms ease;
+}
+
+.danger-button:hover:not(:disabled) {
+  border-color: var(--rose-bright);
+  background: rgba(182, 45, 58, .2);
+  color: var(--white);
+}
+
+.danger-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.danger-button:disabled { cursor: wait; opacity: .65; }
 
 .account-button:hover,
 .auth-switch:hover { color: var(--rose-bright); }
@@ -992,6 +1020,9 @@ main {
   .account-actions { gap: 8px; }
   .account-email { display: none; }
   .account-button { min-height: 44px; padding: 8px 0; }
+  .delete-album-button { width: 44px; min-width: 44px; padding: 0; }
+  .delete-album-button svg { width: 18px; height: 18px; }
+  .delete-album-button span { display: none; }
   .timeline-actions { width: 100%; justify-content: space-between; gap: 8px; }
   .timeline-heading { flex-wrap: wrap; align-items: center; gap: 14px; }
   .timeline-heading h2 { max-width: none; }
@@ -1026,6 +1057,7 @@ main {
     grid-template-columns: minmax(84px, 30%) minmax(0, 1fr);
   }
   .timeline.list-view .memory-caption { padding: 0 12px; }
+  .day-toolbar { margin-bottom: 26px; }
   .day-header { align-items: flex-start; }
   .day-header h2 { font-size: clamp(36px, 10vw, 44px); overflow-wrap: anywhere; }
   .day-header { gap: 12px; }
